@@ -1,0 +1,1603 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Smart Expense Tracker - Dashboard</title>
+
+    <link rel="stylesheet" href="css/style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</head>
+
+
+<body>
+
+    <div class="dashboard">
+
+        <!-- =========================
+             HEADER
+        ========================== -->
+
+        <div class="dashboard-header">
+
+            <div>
+                <h1>Smart Expense Tracker</h1>
+
+                <p>
+                    Welcome back 👋 Manage your money smartly.
+                </p>
+            </div>
+
+
+            <button id="logoutBtn">
+                Logout
+            </button>
+
+        </div>
+
+
+
+        <!-- =========================
+             SUMMARY CARDS
+        ========================== -->
+
+        <div class="summary">
+
+            <div class="card">
+
+                <h3>💰 This Month Income</h3>
+
+                <h2 id="monthIncome">
+                    ₹0
+                </h2>
+
+            </div>
+
+
+            <div class="card">
+
+                <h3>💸 This Month Expense</h3>
+
+                <h2 id="monthExpense">
+                    ₹0
+                </h2>
+
+            </div>
+
+
+            <div class="card">
+
+                <h3>💵 This Month Balance</h3>
+
+                <h2 id="monthBalance">
+                    ₹0
+                </h2>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- =========================
+             MAIN GRID
+        ========================== -->
+
+        <div class="main-grid">
+
+
+            <!-- =========================
+                 ADD TRANSACTION
+            ========================== -->
+
+            <div class="transaction-section">
+
+                <h2>
+                    ➕ Add Transaction
+                </h2>
+
+                <p class="section-subtitle">
+                    Add your income or expense
+                </p>
+
+
+                <label>
+                    Description
+                </label>
+
+                <input
+                    type="text"
+                    id="description"
+                    placeholder="Example: Grocery shopping"
+                >
+
+
+                <label>
+                    Amount
+                </label>
+
+                <input
+                    type="number"
+                    id="amount"
+                    placeholder="Enter amount"
+                >
+
+
+                <label>
+                    Category
+                </label>
+
+                <select id="category">
+
+                    <option value="Food">
+                        🍔 Food
+                    </option>
+
+                    <option value="Travel">
+                        🚗 Travel
+                    </option>
+
+                    <option value="Shopping">
+                        🛍️ Shopping
+                    </option>
+
+                    <option value="Bills">
+                        💡 Bills
+                    </option>
+
+                    <option value="Education">
+                        📚 Education
+                    </option>
+
+                    <option value="Others">
+                        📌 Others
+                    </option>
+
+                </select>
+
+
+                <label>
+                    Date
+                </label>
+
+                <input
+                    type="date"
+                    id="date"
+                >
+
+
+                <label>
+                    Type
+                </label>
+
+                <select id="type">
+
+                    <option value="income">
+                        💰 Income
+                    </option>
+
+                    <option value="expense">
+                        💸 Expense
+                    </option>
+
+                </select>
+
+
+                <button id="addTransactionBtn">
+                    Add Transaction
+                </button>
+
+            </div>
+
+
+
+            <!-- =========================
+                 SPENDING ANALYSIS
+            ========================== -->
+
+            <div class="chart-section">
+
+                <h2>
+                    📊 Spending Analysis
+                </h2>
+
+                <p class="section-subtitle">
+                    Expense breakdown by category
+                </p>
+
+
+                <div class="chart-container">
+
+                    <canvas id="expenseChart"></canvas>
+
+                </div>
+
+
+                <p
+                    id="noChartMessage"
+                    class="no-chart-message"
+                >
+                    No expense data yet.
+                </p>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- =========================
+             TRANSACTIONS
+        ========================== -->
+
+        <div class="transactions">
+
+            <div class="transactions-header">
+
+                <div>
+
+                    <h2>
+                        🧾 Recent Transactions
+                    </h2>
+
+                    <p class="section-subtitle">
+                        View and manage your transactions
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <!-- SEARCH -->
+
+            <div class="filters">
+
+                <input
+                    type="text"
+                    id="searchInput"
+                    placeholder="🔎 Search transactions..."
+                >
+
+
+                <input
+                    type="date"
+                    id="dateFilter"
+                >
+
+            </div>
+
+
+            <!-- TRANSACTION LIST -->
+
+            <div id="transactionList">
+
+                <p>
+                    No transactions yet.
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =========================
+         FIREBASE + APPLICATION
+    ========================== -->
+
+    <script type="module">
+
+
+        /* =========================
+           FIREBASE AUTH
+        ========================== */
+
+        import {
+
+            signOut,
+            onAuthStateChanged
+
+        } from
+        "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+
+
+
+        /* =========================
+           FIRESTORE
+        ========================== */
+
+        import {
+
+            collection,
+            addDoc,
+            getDocs,
+            query,
+            where,
+            deleteDoc,
+            doc,
+            updateDoc
+
+        } from
+        "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+
+
+
+        /* =========================
+           FIREBASE CONFIG
+        ========================== */
+
+        import {
+
+            auth,
+            db
+
+        } from "./js/firebase.js";
+
+
+
+        /* =========================
+           VARIABLES
+        ========================== */
+
+        let transactions = [];
+
+        let expenseChart = null;
+
+        let searchText = "";
+
+        let dateFilter = "";
+
+
+
+        /* =========================
+           ELEMENTS
+        ========================== */
+
+        const addButton =
+            document.getElementById(
+                "addTransactionBtn"
+            );
+
+
+        const transactionList =
+            document.getElementById(
+                "transactionList"
+            );
+
+
+        const logoutBtn =
+            document.getElementById(
+                "logoutBtn"
+            );
+
+
+        const searchInput =
+            document.getElementById(
+                "searchInput"
+            );
+
+
+        const dateFilterInput =
+            document.getElementById(
+                "dateFilter"
+            );
+
+
+        const noChartMessage =
+            document.getElementById(
+                "noChartMessage"
+            );
+
+
+
+        /* =========================
+           CALCULATE TOTALS
+        ========================== */
+
+        function calculateTotals() {
+
+            const today =
+                new Date();
+
+
+            const currentYear =
+                today.getFullYear();
+
+
+            const currentMonth =
+                today.getMonth();
+
+
+            let monthIncome = 0;
+
+            let monthExpense = 0;
+
+
+            transactions.forEach(
+                function(item) {
+
+                    const transactionDate =
+                        new Date(
+                            item.date + "T00:00:00"
+                        );
+
+
+                    if (
+
+                        transactionDate.getFullYear()
+                            === currentYear
+
+                        &&
+
+                        transactionDate.getMonth()
+                            === currentMonth
+
+                    ) {
+
+                        if (
+                            item.type ===
+                            "income"
+                        ) {
+
+                            monthIncome +=
+                                Number(
+                                    item.amount
+                                );
+
+                        }
+
+
+                        if (
+                            item.type ===
+                            "expense"
+                        ) {
+
+                            monthExpense +=
+                                Number(
+                                    item.amount
+                                );
+
+                        }
+
+                    }
+
+                }
+            );
+
+
+            document.getElementById(
+                "monthIncome"
+            ).textContent =
+                "₹" +
+                monthIncome;
+
+
+            document.getElementById(
+                "monthExpense"
+            ).textContent =
+                "₹" +
+                monthExpense;
+
+
+            document.getElementById(
+                "monthBalance"
+            ).textContent =
+                "₹" +
+                (
+                    monthIncome -
+                    monthExpense
+                );
+
+        }
+
+
+
+        /* =========================
+           PIE CHART
+        ========================== */
+
+        function updateExpenseChart() {
+
+            const canvas =
+                document.getElementById(
+                    "expenseChart"
+                );
+
+
+            if (!canvas) {
+
+                return;
+
+            }
+
+
+            const categoryTotals = {};
+
+
+            transactions.forEach(
+                function(item) {
+
+                    if (
+                        item.type ===
+                        "expense"
+                    ) {
+
+                        const category =
+                            item.category ||
+                            "Others";
+
+
+                        categoryTotals[category] =
+                            (
+                                categoryTotals[
+                                    category
+                                ] || 0
+                            ) +
+                            Number(
+                                item.amount
+                            );
+
+                    }
+
+                }
+            );
+
+
+            const labels =
+                Object.keys(
+                    categoryTotals
+                );
+
+
+            const values =
+                Object.values(
+                    categoryTotals
+                );
+
+
+            if (expenseChart) {
+
+                expenseChart.destroy();
+
+                expenseChart = null;
+
+            }
+
+
+            if (
+                labels.length === 0
+            ) {
+
+                noChartMessage.style.display =
+                    "block";
+
+                return;
+
+            }
+
+
+            noChartMessage.style.display =
+                "none";
+
+
+            expenseChart =
+                new Chart(
+                    canvas,
+                    {
+
+                        type: "pie",
+
+                        data: {
+
+                            labels:
+                                labels,
+
+                            datasets: [
+
+                                {
+
+                                    data:
+                                        values,
+
+                                    borderWidth:
+                                        2
+
+                                }
+
+                            ]
+
+                        },
+
+                        options: {
+
+                            responsive: true,
+
+                            maintainAspectRatio:
+                                false,
+
+                            plugins: {
+
+                                legend: {
+
+                                    position:
+                                        "bottom"
+
+                                }
+
+                            }
+
+                        }
+
+                    }
+                );
+
+        }
+
+
+
+        /* =========================
+           DISPLAY TRANSACTIONS
+        ========================== */
+
+        function displayTransactions() {
+
+            transactionList.innerHTML =
+                "";
+
+
+            const filteredTransactions =
+                transactions.filter(
+                    function(item) {
+
+
+                        const text =
+                            (
+
+                                item.description +
+
+                                " " +
+
+                                item.category +
+
+                                " " +
+
+                                item.date +
+
+                                " " +
+
+                                item.type +
+
+                                " " +
+
+                                item.amount
+
+                            )
+                            .toLowerCase();
+
+
+                        const matchesSearch =
+                            text.includes(
+                                searchText
+                            );
+
+
+                        const matchesDate =
+                            dateFilter === "" ||
+                            item.date ===
+                                dateFilter;
+
+
+                        return (
+                            matchesSearch &&
+                            matchesDate
+                        );
+
+                    }
+                );
+
+
+            if (
+                filteredTransactions.length ===
+                0
+            ) {
+
+                transactionList.innerHTML =
+                    "<p>No transactions found.</p>";
+
+                return;
+
+            }
+
+
+            filteredTransactions.forEach(
+                function(item) {
+
+
+                    const transaction =
+                        document.createElement(
+                            "div"
+                        );
+
+
+                    transaction.className =
+                        "transaction-item";
+
+
+                    const text =
+                        document.createElement(
+                            "span"
+                        );
+
+
+                    if (
+                        item.type ===
+                        "income"
+                    ) {
+
+                        text.textContent =
+
+                            "💰 " +
+
+                            item.description +
+
+                            " | " +
+
+                            item.category +
+
+                            " | " +
+
+                            item.date +
+
+                            " | + ₹" +
+
+                            item.amount;
+
+                    }
+
+                    else {
+
+                        text.textContent =
+
+                            "💸 " +
+
+                            item.description +
+
+                            " | " +
+
+                            item.category +
+
+                            " | " +
+
+                            item.date +
+
+                            " | - ₹" +
+
+                            item.amount;
+
+                    }
+
+
+
+                    /* =================
+                       EDIT
+                    ================= */
+
+                    const editButton =
+                        document.createElement(
+                            "button"
+                        );
+
+
+                    editButton.textContent =
+                        "Edit";
+
+
+                    editButton.addEventListener(
+                        "click",
+                        async function() {
+
+
+                            const newDescription =
+                                prompt(
+                                    "Enter description:",
+                                    item.description
+                                );
+
+
+                            if (
+                                newDescription ===
+                                null
+                            ) {
+
+                                return;
+
+                            }
+
+
+                            if (
+                                newDescription
+                                    .trim() ===
+                                ""
+                            ) {
+
+                                alert(
+                                    "Description cannot be empty."
+                                );
+
+                                return;
+
+                            }
+
+
+                            const newAmount =
+                                prompt(
+                                    "Enter amount:",
+                                    item.amount
+                                );
+
+
+                            if (
+                                newAmount ===
+                                null
+                            ) {
+
+                                return;
+
+                            }
+
+
+                            const amountNumber =
+                                Number(
+                                    newAmount
+                                );
+
+
+                            if (
+                                isNaN(
+                                    amountNumber
+                                ) ||
+                                amountNumber <= 0
+                            ) {
+
+                                alert(
+                                    "Please enter a valid amount."
+                                );
+
+                                return;
+
+                            }
+
+
+                            const newCategory =
+                                prompt(
+                                    "Enter category:",
+                                    item.category
+                                );
+
+
+                            if (
+                                newCategory ===
+                                null
+                            ) {
+
+                                return;
+
+                            }
+
+
+                            const newDate =
+                                prompt(
+                                    "Enter date (YYYY-MM-DD):",
+                                    item.date
+                                );
+
+
+                            if (
+                                newDate ===
+                                null
+                            ) {
+
+                                return;
+
+                            }
+
+
+                            const newType =
+                                prompt(
+                                    "Enter type (income / expense):",
+                                    item.type
+                                );
+
+
+                            if (
+                                newType ===
+                                null
+                            ) {
+
+                                return;
+
+                            }
+
+
+                            const finalType =
+                                newType
+                                    .trim()
+                                    .toLowerCase();
+
+
+                            if (
+                                finalType !==
+                                    "income" &&
+                                finalType !==
+                                    "expense"
+                            ) {
+
+                                alert(
+                                    "Type must be income or expense."
+                                );
+
+                                return;
+
+                            }
+
+
+                            try {
+
+
+                                await updateDoc(
+
+                                    doc(
+                                        db,
+                                        "transactions",
+                                        item.id
+                                    ),
+
+                                    {
+
+                                        description:
+                                            newDescription
+                                                .trim(),
+
+                                        amount:
+                                            amountNumber,
+
+                                        category:
+                                            newCategory
+                                                .trim(),
+
+                                        date:
+                                            newDate
+                                                .trim(),
+
+                                        type:
+                                            finalType
+
+                                    }
+
+                                );
+
+
+                                item.description =
+                                    newDescription
+                                        .trim();
+
+
+                                item.amount =
+                                    amountNumber;
+
+
+                                item.category =
+                                    newCategory
+                                        .trim();
+
+
+                                item.date =
+                                    newDate
+                                        .trim();
+
+
+                                item.type =
+                                    finalType;
+
+
+                                displayTransactions();
+
+                                calculateTotals();
+
+                                updateExpenseChart();
+
+
+                                alert(
+                                    "Transaction updated successfully! ✅"
+                                );
+
+                            }
+
+                            catch (error) {
+
+                                console.error(
+                                    error
+                                );
+
+
+                                alert(
+                                    "Transaction update failed: " +
+                                    error.message
+                                );
+
+                            }
+
+                        }
+                    );
+
+
+
+                    /* =================
+                       DELETE
+                    ================= */
+
+                    const deleteButton =
+                        document.createElement(
+                            "button"
+                        );
+
+
+                    deleteButton.textContent =
+                        "Delete";
+
+
+                    deleteButton.addEventListener(
+                        "click",
+                        async function() {
+
+
+                            const confirmDelete =
+                                confirm(
+                                    "Delete this transaction?"
+                                );
+
+
+                            if (
+                                !confirmDelete
+                            ) {
+
+                                return;
+
+                            }
+
+
+                            try {
+
+
+                                await deleteDoc(
+
+                                    doc(
+                                        db,
+                                        "transactions",
+                                        item.id
+                                    )
+
+                                );
+
+
+                                const index =
+                                    transactions.indexOf(
+                                        item
+                                    );
+
+
+                                if (
+                                    index !== -1
+                                ) {
+
+                                    transactions.splice(
+                                        index,
+                                        1
+                                    );
+
+                                }
+
+
+                                displayTransactions();
+
+                                calculateTotals();
+
+                                updateExpenseChart();
+
+
+                                alert(
+                                    "Transaction deleted successfully! ✅"
+                                );
+
+                            }
+
+                            catch (error) {
+
+                                console.error(
+                                    error
+                                );
+
+
+                                alert(
+                                    "Transaction delete failed: " +
+                                    error.message
+                                );
+
+                            }
+
+                        }
+                    );
+
+
+
+                    transaction.appendChild(
+                        text
+                    );
+
+
+                    transaction.appendChild(
+                        editButton
+                    );
+
+
+                    transaction.appendChild(
+                        deleteButton
+                    );
+
+
+                    transactionList.appendChild(
+                        transaction
+                    );
+
+                }
+            );
+
+        }
+
+
+
+        /* =========================
+           SEARCH
+        ========================== */
+
+        searchInput.addEventListener(
+            "input",
+            function() {
+
+                searchText =
+                    searchInput.value
+                        .trim()
+                        .toLowerCase();
+
+
+                displayTransactions();
+
+            }
+        );
+
+
+
+        /* =========================
+           DATE FILTER
+        ========================== */
+
+        dateFilterInput.addEventListener(
+            "change",
+            function() {
+
+                dateFilter =
+                    dateFilterInput.value;
+
+
+                displayTransactions();
+
+            }
+        );
+
+
+
+        /* =========================
+           LOAD FIREBASE DATA
+        ========================== */
+
+        async function loadTransactionsFromFirebase() {
+
+            try {
+
+                const user =
+                    auth.currentUser;
+
+
+                if (!user) {
+
+                    return;
+
+                }
+
+
+                const q =
+                    query(
+
+                        collection(
+                            db,
+                            "transactions"
+                        ),
+
+                        where(
+                            "userId",
+                            "==",
+                            user.uid
+                        )
+
+                    );
+
+
+                const snapshot =
+                    await getDocs(q);
+
+
+                transactions = [];
+
+
+                snapshot.forEach(
+                    function(docSnapshot) {
+
+                        const data =
+                            docSnapshot.data();
+
+
+                        transactions.push({
+
+                            id:
+                                docSnapshot.id,
+
+                            description:
+                                data.description,
+
+                            amount:
+                                data.amount,
+
+                            category:
+                                data.category,
+
+                            date:
+                                data.date,
+
+                            type:
+                                data.type
+
+                        });
+
+                    }
+                );
+
+
+                displayTransactions();
+
+                calculateTotals();
+
+                updateExpenseChart();
+
+            }
+
+            catch (error) {
+
+                console.error(
+                    "Firebase loading error:",
+                    error
+                );
+
+
+                alert(
+                    "Could not load transactions: " +
+                    error.message
+                );
+
+            }
+
+        }
+
+
+
+        /* =========================
+           LOGIN PROTECTION
+        ========================== */
+
+        onAuthStateChanged(
+            auth,
+            async function(user) {
+
+
+                if (!user) {
+
+                    window.location.href =
+                        "index.html";
+
+                    return;
+
+                }
+
+
+                await loadTransactionsFromFirebase();
+
+            }
+        );
+
+
+
+        /* =========================
+           ADD TRANSACTION
+        ========================== */
+
+        addButton.addEventListener(
+            "click",
+            async function() {
+
+
+                const description =
+                    document.getElementById(
+                        "description"
+                    ).value.trim();
+
+
+                const amount =
+                    Number(
+                        document.getElementById(
+                            "amount"
+                        ).value
+                    );
+
+
+                const category =
+                    document.getElementById(
+                        "category"
+                    ).value;
+
+
+                const date =
+                    document.getElementById(
+                        "date"
+                    ).value;
+
+
+                const type =
+                    document.getElementById(
+                        "type"
+                    ).value;
+
+
+
+                if (
+                    description === ""
+                ) {
+
+                    alert(
+                        "Please enter a description."
+                    );
+
+                    return;
+
+                }
+
+
+                if (
+                    isNaN(amount) ||
+                    amount <= 0
+                ) {
+
+                    alert(
+                        "Please enter a valid amount."
+                    );
+
+                    return;
+
+                }
+
+
+                if (
+                    date === ""
+                ) {
+
+                    alert(
+                        "Please select a date."
+                    );
+
+                    return;
+
+                }
+
+
+
+                try {
+
+
+                    const user =
+                        auth.currentUser;
+
+
+                    if (!user) {
+
+                        alert(
+                            "Please login again."
+                        );
+
+                        return;
+
+                    }
+
+
+                    const docRef =
+                        await addDoc(
+
+                            collection(
+                                db,
+                                "transactions"
+                            ),
+
+                            {
+
+                                description:
+                                    description,
+
+                                amount:
+                                    amount,
+
+                                category:
+                                    category,
+
+                                date:
+                                    date,
+
+                                type:
+                                    type,
+
+                                userId:
+                                    user.uid,
+
+                                createdAt:
+                                    new Date()
+
+                            }
+
+                        );
+
+
+                    transactions.push({
+
+                        id:
+                            docRef.id,
+
+                        description:
+                            description,
+
+                        amount:
+                            amount,
+
+                        category:
+                            category,
+
+                        date:
+                            date,
+
+                        type:
+                            type
+
+                    });
+
+
+                    displayTransactions();
+
+                    calculateTotals();
+
+                    updateExpenseChart();
+
+
+                    document.getElementById(
+                        "description"
+                    ).value = "";
+
+
+                    document.getElementById(
+                        "amount"
+                    ).value = "";
+
+
+                    document.getElementById(
+                        "date"
+                    ).value = "";
+
+
+                    alert(
+                        "Transaction saved successfully! ✅"
+                    );
+
+                }
+
+                catch (error) {
+
+                    console.error(
+                        "Firebase save error:",
+                        error
+                    );
+
+
+                    alert(
+                        "Transaction could not be saved: " +
+                        error.message
+                    );
+
+                }
+
+            }
+        );
+
+
+
+        /* =========================
+           LOGOUT
+        ========================== */
+
+        logoutBtn.addEventListener(
+            "click",
+            async function() {
+
+
+                const confirmLogout =
+                    confirm(
+                        "Are you sure you want to logout?"
+                    );
+
+
+                if (!confirmLogout) {
+
+                    return;
+
+                }
+
+
+                try {
+
+
+                    await signOut(auth);
+
+
+                    window.location.href =
+                        "index.html";
+
+                }
+
+                catch (error) {
+
+                    console.error(
+                        "Logout error:",
+                        error
+                    );
+
+
+                    alert(
+                        "Logout failed: " +
+                        error.message
+                    );
+
+                }
+
+            }
+        );
+
+
+    </script>
+
+</body>
+
+</html>
+
